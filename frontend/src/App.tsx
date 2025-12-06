@@ -44,6 +44,9 @@ function App(): JSX.Element {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [creatingUser, setCreatingUser] = useState(false);
 
+  // --------------------------------------------------
+  // Auth
+  // --------------------------------------------------
   useEffect(() => {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
 
@@ -81,6 +84,9 @@ function App(): JSX.Element {
     };
   }, [auth]);
 
+  // --------------------------------------------------
+  // Weather
+  // --------------------------------------------------
   const carregarLogs = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -188,19 +194,79 @@ function App(): JSX.Element {
     }
   }, [carregarInsights, carregarLogs, getAuthHeaders]);
 
-  const handleDownloadCsv = (): void => {
-    window.open(
-      API_BASE_URL + "/weather/export.csv",
-      "_blank",
-    );
-  };
+  const handleDownloadCsv = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(
+        API_BASE_URL + "/weather/export.csv",
+        {
+          headers: getAuthHeaders(),
+        },
+      );
 
-  const handleDownloadXlsx = (): void => {
-    window.open(
-      API_BASE_URL + "/weather/export.xlsx",
-      "_blank",
-    );
-  };
+      if (!response.ok) {
+        throw new Error(
+          "Falha ao exportar CSV (" +
+            String(response.status) +
+            ")",
+        );
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "weather_logs.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Erro inesperado ao exportar CSV";
+      window.alert(message);
+    }
+  }, [getAuthHeaders]);
+
+  const handleDownloadXlsx = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(
+        API_BASE_URL + "/weather/export.xlsx",
+        {
+          headers: getAuthHeaders(),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Falha ao exportar XLSX (" +
+            String(response.status) +
+            ")",
+        );
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "weather_logs.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Erro inesperado ao exportar XLSX";
+      window.alert(message);
+    }
+  }, [getAuthHeaders]);
 
   useEffect(() => {
     if (!auth) {
@@ -211,6 +277,9 @@ function App(): JSX.Element {
     void carregarInsights();
   }, [auth, carregarLogs, carregarInsights]);
 
+  // --------------------------------------------------
+  // Users
+  // --------------------------------------------------
   const carregarUsuarios = useCallback(async (): Promise<void> => {
     setUsersLoading(true);
     setUsersError(null);
@@ -352,6 +421,9 @@ function App(): JSX.Element {
     }
   }, [activePage, auth, carregarUsuarios]);
 
+  // --------------------------------------------------
+  // Login / Logout
+  // --------------------------------------------------
   const handleLoginSubmit = async (
     event: FormEvent<HTMLFormElement>,
   ): Promise<void> => {
@@ -393,6 +465,9 @@ function App(): JSX.Element {
     setUsers([]);
   };
 
+  // --------------------------------------------------
+  // Render
+  // --------------------------------------------------
   if (!authLoaded) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
@@ -491,8 +566,12 @@ function App(): JSX.Element {
             onCreateFake={function () {
               void criarRegistroFake();
             }}
-            onExportCsv={handleDownloadCsv}
-            onExportXlsx={handleDownloadXlsx}
+            onExportCsv={function () {
+              void handleDownloadCsv();
+            }}
+            onExportXlsx={function () {
+              void handleDownloadXlsx();
+            }}
           />
         )}
 

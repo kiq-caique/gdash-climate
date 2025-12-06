@@ -1,8 +1,30 @@
-from typing import List, Optional
+import os
+import json
 from math import isnan
+from typing import List, Optional
+from datetime import datetime, timezone
 
+import httpx
+import aio_pika
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://gdash:gdash@localhost:5672/")
+RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "gdash.weather.logs")
+
+OPEN_METEO_URL = os.getenv("OPEN_METEO_URL", "https://api.open-meteo.com/v1/forecast")
+WEATHER_LAT = os.getenv("WEATHER_LAT", "-3.73")       
+WEATHER_LON = os.getenv("WEATHER_LON", "-38.52")
+WEATHER_CITY = os.getenv("WEATHER_CITY", "Fortaleza, BR")
+WEATHER_TIMEZONE = os.getenv("WEATHER_TIMEZONE", "America/Fortaleza")
+
+# em produção poderia ser 60 (minutos); pra testar pode por 1–5 minutos
+FETCH_INTERVAL_MINUTES = int(os.getenv("FETCH_INTERVAL_MINUTES", "2"))
 
 
 class WeatherLogIn(BaseModel):
@@ -68,7 +90,8 @@ def _calc_trend(temps: List[Optional[float]]) -> Optional[str]:
     return "estavel"
 
 
-def _calc_comfort_index(avg_temp: Optional[float], avg_humidity: Optional[float]) -> Optional[float]:
+def _calc_comfort_index(avg_temp: Optional[float],
+                        avg_humidity: Optional[float]) -> Optional[float]:
     """
     Índice tosco só pra ter um numerozinho bonitinho:
     quanto mais perto de 24°C e 50% umidade, melhor (mais próximo de 100).
@@ -136,7 +159,7 @@ def generate_insights_from_logs(logs: List[WeatherLogIn]) -> WeatherInsightsOut:
             minTemperature=None,
             trend=None,
             comfortIndex=None,
-            summary="Nenhum registro de clima recebido ainda."
+            summary="Nenhum registro de clima recebido ainda.",
         )
 
     temps = [log.temperature for log in logs]
@@ -153,7 +176,6 @@ def generate_insights_from_logs(logs: List[WeatherLogIn]) -> WeatherInsightsOut:
     comfort = _calc_comfort_index(avg_temp, avg_hum)
     summary = _build_summary(len(logs), avg_temp, avg_hum, trend, comfort)
 
-    # arredonda bonitinho
     if avg_temp is not None:
         avg_temp = round(avg_temp, 1)
     if avg_hum is not None:
@@ -169,3 +191,132 @@ def generate_insights_from_logs(logs: List[WeatherLogIn]) -> WeatherInsightsOut:
         comfortIndex=comfort,
         summary=summary,
     )
+
+
+@app.get("/health")
+def health_check() -> dict:
+    return {"status": "ok"}
+
+
+async def fetch_weather_from_open_meteo() -> Optional[WeatherLogIn]:
+    """
+    Busca dados atuais de clima na Open-Meteo e converte para WeatherLogIn.
+    """
+    params = {
+        "latitude": WEATHER_LAT,
+        "longitude": WEATHER_LON,
+        "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code",
+        "timezone": WEATHER_TIMEZONE,
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(OPEN_METEO_URL, params=params, timeout=10.0)
+        resp.raise_for_status()
+        data = resp.json()
+
+    current = data.get("current", {})
+
+    temperature = current.get("temperature_2m")
+    humidity = current.get("relative_humidity_2m")
+    wind_speed = current.get("wind_speed_10m")
+    weather_code = current.get("weather_code")
+
+    condition = "desconhecido"
+    if isinstance(weather_code, (int, float)):
+        code = int(weather_code)
+        if code == 0:
+            condition = "clear"
+        elif code in (1, 2, 3):
+            condition = "clouds"
+        elif 51 <= code <= 67:
+            condition = "drizzle"
+        elif 71 <= code <= 77:
+            condition = "snow"
+        elif 80 <= code <= 82:
+            condition = "rain"
+        elif 95 <= code <= 99:
+            condition = "storm"
+
+    log = WeatherLogIn(
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        location=WEATHER_CITY,
+        temperature=float(temperature) if temperature is not None else None,
+        humidity=float(humidity) if humidity is not None else None,
+        windSpeed=float(wind_speed) if wind_speed is not None else None,
+        condition=condition,
+        source="python-open-meteo",
+        userId=None,
+    )
+
+    return log
+
+
+async def send_log_to_queue(log: WeatherLogIn) -> None:
+    """
+    Envia o log para a fila RabbitMQ que o worker Go consome.
+    """
+    connection = await aio_pika.connect_robust(RABBITMQ_URL)
+    async with connection:
+        channel = await connection.channel()
+        await channel.set_qos(prefetch_count=10)
+
+        queue = await channel.declare_queue(RABBITMQ_QUEUE, durable=True)
+
+        body = json.dumps(log.dict()).encode("utf-8")
+
+        message = aio_pika.Message(
+            body=body,
+            content_type="application/json",
+            delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+        )
+
+        await channel.default_exchange.publish(
+            message,
+            routing_key=queue.name,
+        )
+
+
+async def collect_and_enqueue_weather() -> None:
+    """
+    Tarefa que será executada periodicamente:
+    - chama a Open-Meteo
+    - monta o JSON
+    - publica na fila do RabbitMQ
+    """
+    try:
+        log = await fetch_weather_from_open_meteo()
+        if log is None:
+            print("[python-insights] Nenhum dado retornado da Open-Meteo.")
+            return
+
+        await send_log_to_queue(log)
+        print("[python-insights] Log de clima enviado para a fila com sucesso.")
+    except Exception as exc:
+        print(f"[python-insights] Erro ao coletar/enfileirar clima: {exc}")
+
+
+scheduler = AsyncIOScheduler()
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    """
+    Inicia o scheduler assim que o FastAPI sobe.
+    """
+    scheduler.add_job(
+        collect_and_enqueue_weather,
+        trigger="interval",
+        minutes=FETCH_INTERVAL_MINUTES,
+        id="collect_weather_job",
+        replace_existing=True,
+    )
+    scheduler.start()
+    print(
+        f"[python-insights] Scheduler iniciado. Coletando clima a cada "
+        f"{FETCH_INTERVAL_MINUTES} minuto(s)."
+    )
+
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    scheduler.shutdown(wait=False)
