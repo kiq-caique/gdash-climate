@@ -6,8 +6,6 @@ import "./index.css";
 const API_BASE_URL = "http://localhost:3000";
 const AUTH_STORAGE_KEY = "gdash_auth";
 
-// ---------------------- Tipos ----------------------
-
 type AuthUser = {
   id?: string;
   _id?: string;
@@ -56,8 +54,6 @@ type UserListItem = {
   role: "admin" | "user";
 };
 
-// ---------------------- Helpers ----------------------
-
 const parseDate = (value: MaybeDate): Date | null => {
   if (!value) {
     return null;
@@ -97,8 +93,6 @@ const formatNumber = (
   return value.toFixed(digits).replace(".", ",");
 };
 
-// ---------------------- App ----------------------
-
 function App(): JSX.Element {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
@@ -107,7 +101,6 @@ function App(): JSX.Element {
     "dashboard",
   );
 
-  // weather state
   const [logs, setLogs] = useState<WeatherLog[]>([]);
   const [insights, setInsights] = useState<WeatherInsights | null>(
     null,
@@ -117,13 +110,10 @@ function App(): JSX.Element {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // users state
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [creatingUser, setCreatingUser] = useState(false);
-
-  // ------------ carregar auth do localStorage ------------
 
   useEffect(() => {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -161,8 +151,6 @@ function App(): JSX.Element {
       Authorization: "Bearer " + auth.token,
     };
   };
-
-  // ------------ chamadas de API: weather ------------
 
   const carregarLogs = async (): Promise<void> => {
     setLoading(true);
@@ -285,7 +273,6 @@ function App(): JSX.Element {
     );
   };
 
-  // carregar logs/insights quando logar
   useEffect(() => {
     if (!auth) {
       return;
@@ -294,8 +281,6 @@ function App(): JSX.Element {
     void carregarLogs();
     void carregarInsights();
   }, [auth?.token]);
-
-  // ------------ chamadas de API: users ------------
 
   const carregarUsuarios = async (): Promise<void> => {
     setUsersLoading(true);
@@ -389,7 +374,6 @@ function App(): JSX.Element {
       return;
     }
 
-    // evita apagar a si mesmo
     if (auth && user.email === auth.user.email) {
       window.alert("Você não pode excluir o próprio usuário logado.");
       return;
@@ -429,7 +413,6 @@ function App(): JSX.Element {
     }
   };
 
-  // carregar usuários quando abrir a aba "users"
   useEffect(() => {
     if (!auth) {
       return;
@@ -440,7 +423,6 @@ function App(): JSX.Element {
     }
   }, [auth?.token, activePage]);
 
-  // ------------ login / logout ------------
 
   const handleLoginSubmit = async (
     event: FormEvent<HTMLFormElement>,
@@ -483,8 +465,6 @@ function App(): JSX.Element {
     setUsers([]);
   };
 
-  // ------------ render ------------
-
   if (!authLoaded) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
@@ -494,7 +474,6 @@ function App(): JSX.Element {
   }
 
   if (!auth) {
-    // TELA DE LOGIN
     return (
       <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
         <div className="w-full max-w-sm bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl p-6">
@@ -565,7 +544,6 @@ function App(): JSX.Element {
     );
   }
 
-  // DASHBOARD + USERS
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 flex items-start justify-center py-10">
       <div className="w-full max-w-5xl bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-6">
@@ -628,7 +606,6 @@ function App(): JSX.Element {
           </div>
         </header>
 
-        {/* CONTEÚDO PRINCIPAL */}
         {activePage === "dashboard" && (
           <div>
             {error && (
@@ -680,7 +657,6 @@ function App(): JSX.Element {
               </button>
             </div>
 
-            {/* INSIGHTS */}
             <section className="mb-6">
               <h2 className="text-sm font-semibold text-slate-200 mb-3">
                 Insights do clima (IA simples)
@@ -748,7 +724,6 @@ function App(): JSX.Element {
               </div>
             </section>
 
-            {/* TABELA */}
             <section className="bg-slate-950/40 border border-slate-800 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-800">
                 <h2 className="text-sm font-semibold text-slate-200">

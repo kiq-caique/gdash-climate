@@ -5,10 +5,6 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 
-# ----------------------------
-# MODELOS (devem bater com o Nest)
-# ----------------------------
-
 class WeatherLogIn(BaseModel):
     id: Optional[str] = None
     timestamp: Optional[str] = None
@@ -18,7 +14,7 @@ class WeatherLogIn(BaseModel):
     windSpeed: Optional[float] = None
     condition: Optional[str] = None
     source: Optional[str] = None
-    userId: Optional[str] = None  # se um dia quiser mandar
+    userId: Optional[str] = None
 
 
 class WeatherInsightsOut(BaseModel):
@@ -34,10 +30,6 @@ class WeatherInsightsOut(BaseModel):
 
 app = FastAPI(title="GDASH Climate Python Insights")
 
-
-# ----------------------------
-# Funções helpers de cálculo
-# ----------------------------
 
 def _safe_numbers(values: List[Optional[float]]) -> List[float]:
     result: List[float] = []
@@ -84,7 +76,6 @@ def _calc_comfort_index(avg_temp: Optional[float], avg_humidity: Optional[float]
     if avg_temp is None or avg_humidity is None:
         return None
 
-    # distância "ideal"
     temp_score = max(0.0, 1.0 - abs(avg_temp - 24.0) / 15.0)
     hum_score = max(0.0, 1.0 - abs(avg_humidity - 50.0) / 50.0)
 
@@ -129,10 +120,6 @@ def _build_summary(count: int,
 
     return " ".join(partes)
 
-
-# ----------------------------
-# ROTA PRINCIPAL DE INSIGHTS
-# ----------------------------
 
 @app.post("/insights/from-logs", response_model=WeatherInsightsOut)
 def generate_insights_from_logs(logs: List[WeatherLogIn]) -> WeatherInsightsOut:
