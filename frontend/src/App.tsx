@@ -1,110 +1,39 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // frontend/src/App.tsx
-import { FormEvent, JSX, useEffect, useState } from "react";
+import {
+  FormEvent,
+  JSX,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import "./index.css";
 
-const API_BASE_URL = "http://localhost:3000";
-const AUTH_STORAGE_KEY = "gdash_auth";
+import {
+  API_BASE_URL,
+  AUTH_STORAGE_KEY,
+  AuthState,
+  WeatherLog,
+  WeatherInsights,
+  UserListItem,
+} from "./types";
 
-type AuthUser = {
-  id?: string;
-  _id?: string;
-  name: string;
-  email: string;
-  role: "admin" | "user";
-};
+import { Button } from "./components/ui/button";
+import LoginScreen from "./components/LoginScreen";
+import DashboardScreen from "./components/DashboardScreen";
+import UsersScreen from "./components/UsersScreen";
 
-type AuthState = {
-  token: string;
-  user: AuthUser;
-};
-
-type WeatherLog = {
-  id?: string;
-  _id?: string;
-  timestamp?: string | Date | null;
-  location?: string;
-  temperature?: number;
-  humidity?: number;
-  windSpeed?: number;
-  condition?: string;
-  source?: string;
-};
-
-type TemperatureTrend = "subindo" | "caindo" | "estavel" | null;
-
-type WeatherInsights = {
-  count: number;
-  averageTemperature: number | null;
-  averageHumidity: number | null;
-  maxTemperature: number | null;
-  minTemperature: number | null;
-  trend: TemperatureTrend;
-  comfortIndex: number | null;
-  summary: string;
-};
-
-type MaybeDate = string | Date | null | undefined;
-
-type UserListItem = {
-  id?: string;
-  _id?: string;
-  name: string;
-  email: string;
-  role: "admin" | "user";
-};
-
-const parseDate = (value: MaybeDate): Date | null => {
-  if (!value) {
-    return null;
-  }
-
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-};
-
-const formatDateTime = (value: MaybeDate): string => {
-  const date = parseDate(value);
-  if (!date) {
-    return "—";
-  }
-
-  return date.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const formatNumber = (
-  value: number | null | undefined,
-  digits: number,
-): string => {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-
-  return value.toFixed(digits).replace(".", ",");
-};
+type ActivePage = "dashboard" | "users";
 
 function App(): JSX.Element {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
 
-  const [activePage, setActivePage] = useState<"dashboard" | "users">(
-    "dashboard",
-  );
+  const [activePage, setActivePage] = useState<ActivePage>("dashboard");
 
   const [logs, setLogs] = useState<WeatherLog[]>([]);
-  const [insights, setInsights] = useState<WeatherInsights | null>(
-    null,
-  );
+  const [insights, setInsights] = useState<WeatherInsights | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -122,7 +51,7 @@ function App(): JSX.Element {
       try {
         const parsed = JSON.parse(raw) as AuthState;
         setAuth(parsed);
-      } catch (e) {
+      } catch (_error) {
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
       }
     }
@@ -142,17 +71,17 @@ function App(): JSX.Element {
     }
   };
 
-  const getAuthHeaders = (): HeadersInit => {
-    if (!auth?.token) {
+  const getAuthHeaders = useCallback((): HeadersInit => {
+    if (!auth || !auth.token) {
       return {};
     }
 
     return {
       Authorization: "Bearer " + auth.token,
     };
-  };
+  }, [auth]);
 
-  const carregarLogs = async (): Promise<void> => {
+  const carregarLogs = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
 
@@ -180,9 +109,9 @@ function App(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeaders]);
 
-  const carregarInsights = async (): Promise<void> => {
+  const carregarInsights = useCallback(async (): Promise<void> => {
     setLoadingInsights(true);
     setError(null);
 
@@ -213,9 +142,9 @@ function App(): JSX.Element {
     } finally {
       setLoadingInsights(false);
     }
-  };
+  }, [getAuthHeaders]);
 
-  const criarRegistroFake = async (): Promise<void> => {
+  const criarRegistroFake = useCallback(async (): Promise<void> => {
     setCreating(true);
     setError(null);
 
@@ -257,7 +186,7 @@ function App(): JSX.Element {
     } finally {
       setCreating(false);
     }
-  };
+  }, [carregarInsights, carregarLogs, getAuthHeaders]);
 
   const handleDownloadCsv = (): void => {
     window.open(
@@ -280,9 +209,9 @@ function App(): JSX.Element {
 
     void carregarLogs();
     void carregarInsights();
-  }, [auth?.token]);
+  }, [auth, carregarLogs, carregarInsights]);
 
-  const carregarUsuarios = async (): Promise<void> => {
+  const carregarUsuarios = useCallback(async (): Promise<void> => {
     setUsersLoading(true);
     setUsersError(null);
 
@@ -310,7 +239,7 @@ function App(): JSX.Element {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [getAuthHeaders]);
 
   const handleCreateUser = async (
     event: FormEvent<HTMLFormElement>,
@@ -421,8 +350,7 @@ function App(): JSX.Element {
     if (activePage === "users") {
       void carregarUsuarios();
     }
-  }, [auth?.token, activePage]);
-
+  }, [activePage, auth, carregarUsuarios]);
 
   const handleLoginSubmit = async (
     event: FormEvent<HTMLFormElement>,
@@ -475,72 +403,10 @@ function App(): JSX.Element {
 
   if (!auth) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
-        <div className="w-full max-w-sm bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl p-6">
-          <h1 className="text-xl font-bold mb-2 text-center">
-            GDASH Climate Dashboard
-          </h1>
-          <p className="text-xs text-slate-400 mb-4 text-center">
-            Faça login para acessar o painel de clima.
-          </p>
-
-          {error && (
-            <div className="mb-3 text-xs text-red-400 text-center">
-              {error}
-            </div>
-          )}
-
-          <form
-            onSubmit={handleLoginSubmit}
-            className="space-y-4"
-          >
-            <div>
-              <label
-                className="block text-xs mb-1"
-                htmlFor="email"
-              >
-                E-mail
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                defaultValue="admin@gdash.dev"
-                required
-              />
-            </div>
-
-            <div>
-              <label
-                className="block text-xs mb-1"
-                htmlFor="password"
-              >
-                Senha
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                defaultValue="123456"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full mt-2 rounded-md bg-emerald-500 py-2 text-sm font-semibold hover:bg-emerald-600"
-            >
-              Entrar
-            </button>
-
-            <p className="mt-2 text-[10px] text-slate-500 text-center">
-              Usuário padrão: admin@gdash.dev / 123456
-            </p>
-          </form>
-        </div>
-      </div>
+      <LoginScreen
+        error={error}
+        onSubmit={handleLoginSubmit}
+      />
     );
   }
 
@@ -563,436 +429,88 @@ function App(): JSX.Element {
 
           <div className="flex flex-col gap-2 items-stretch md:items-end">
             <div className="flex gap-2">
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant={activePage === "dashboard" ? "default" : "outline"}
+                className={
+                  activePage === "dashboard"
+                    ? "bg-slate-100 text-slate-900 border-slate-100"
+                    : "bg-slate-800 text-slate-100 border-slate-700"
+                }
                 onClick={function () {
                   setActivePage("dashboard");
                 }}
-                className={
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold border " +
-                  (activePage === "dashboard"
-                    ? "bg-slate-100 text-slate-900 border-slate-100"
-                    : "bg-slate-800 text-slate-100 border-slate-700")
-                }
               >
                 Dashboard
-              </button>
+              </Button>
 
               {auth.user.role === "admin" && (
-                <button
+                <Button
                   type="button"
+                  size="sm"
+                  variant={activePage === "users" ? "default" : "outline"}
+                  className={
+                    activePage === "users"
+                      ? "bg-slate-100 text-slate-900 border-slate-100"
+                      : "bg-slate-800 text-slate-100 border-slate-700"
+                  }
                   onClick={function () {
                     setActivePage("users");
                   }}
-                  className={
-                    "px-3 py-1.5 rounded-lg text-xs font-semibold border " +
-                    (activePage === "users"
-                      ? "bg-slate-100 text-slate-900 border-slate-100"
-                      : "bg-slate-800 text-slate-100 border-slate-700")
-                  }
                 >
                   Usuários
-                </button>
+                </Button>
               )}
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
+              className="px-4 self-end"
               onClick={handleLogout}
-              className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition self-end"
             >
               Sair
-            </button>
+            </Button>
           </div>
         </header>
 
         {activePage === "dashboard" && (
-          <div>
-            {error && (
-              <div className="mb-4 text-sm text-red-400">
-                {error}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-3 mb-6">
-              <button
-                type="button"
-                onClick={function () {
-                  void carregarLogs();
-                  void carregarInsights();
-                }}
-                disabled={loading || loadingInsights}
-                className="px-4 py-2 rounded-lg bg-slate-100 text-slate-900 text-sm font-medium hover:bg-white transition disabled:opacity-60"
-              >
-                {loading || loadingInsights
-                  ? "Atualizando..."
-                  : "Recarregar dados"}
-              </button>
-
-              <button
-                type="button"
-                onClick={function () {
-                  void criarRegistroFake();
-                }}
-                disabled={creating}
-                className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition disabled:opacity-60"
-              >
-                {creating ? "Criando..." : "Criar registro fake"}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDownloadCsv}
-                className="px-4 py-2 rounded-lg bg-slate-800 text-slate-100 text-sm font-medium hover:bg-slate-700 transition"
-              >
-                Exportar CSV
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDownloadXlsx}
-                className="px-4 py-2 rounded-lg bg-slate-800 text-slate-100 text-sm font-medium hover:bg-slate-700 transition"
-              >
-                Exportar XLSX
-              </button>
-            </div>
-
-            <section className="mb-6">
-              <h2 className="text-sm font-semibold text-slate-200 mb-3">
-                Insights do clima (IA simples)
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3">
-                  <p className="text-xs text-slate-400">
-                    Registros
-                  </p>
-                  <p className="text-xl font-semibold">
-                    {insights ? insights.count : 0}
-                  </p>
-                </div>
-
-                <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3">
-                  <p className="text-xs text-slate-400">
-                    Temp. média (°C)
-                  </p>
-                  <p className="text-xl font-semibold">
-                    {formatNumber(
-                      insights
-                        ? insights.averageTemperature
-                        : null,
-                      1,
-                    )}
-                  </p>
-                </div>
-
-                <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3">
-                  <p className="text-xs text-slate-400">
-                    Umidade média (%)
-                  </p>
-                  <p className="text-xl font-semibold">
-                    {formatNumber(
-                      insights ? insights.averageHumidity : null,
-                      0,
-                    )}
-                  </p>
-                </div>
-
-                <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3">
-                  <p className="text-xs text-slate-400">
-                    Índice de conforto
-                  </p>
-                  <p className="text-xl font-semibold">
-                    {formatNumber(
-                      insights ? insights.comfortIndex : null,
-                      1,
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
-                {loadingInsights && !insights && (
-                  <p>Calculando insights...</p>
-                )}
-                {!loadingInsights && insights && (
-                  <p>{insights.summary}</p>
-                )}
-                {!loadingInsights && !insights && (
-                  <p>Nenhum insight disponível ainda.</p>
-                )}
-              </div>
-            </section>
-
-            <section className="bg-slate-950/40 border border-slate-800 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-800">
-                <h2 className="text-sm font-semibold text-slate-200">
-                  Últimos registros
-                </h2>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-900/70">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Data/Hora
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Cidade
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Temp (°C)
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Umidade (%)
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Vento (km/h)
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Condição
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.length === 0 && (
-                      <tr>
-                        <td
-                          className="px-4 py-4 text-slate-400"
-                          colSpan={6}
-                        >
-                          Nenhum registro encontrado. Clique em{" "}
-                          <span className="font-semibold">
-                            Criar registro fake
-                          </span>{" "}
-                          para testar.
-                        </td>
-                      </tr>
-                    )}
-
-                    {logs.map((log) => (
-                      <tr
-                        key={log.id || log._id}
-                        className="border-t border-slate-800/80 hover:bg-slate-900/60 transition"
-                      >
-                        <td className="px-4 py-2">
-                          {formatDateTime(log.timestamp)}
-                        </td>
-                        <td className="px-4 py-2">
-                          {log.location ? log.location : "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          {log.temperature !== undefined &&
-                          log.temperature !== null
-                            ? log.temperature
-                                .toFixed(1)
-                                .replace(".", ",")
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          {log.humidity !== undefined &&
-                          log.humidity !== null
-                            ? log.humidity.toFixed(0)
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          {log.windSpeed !== undefined &&
-                          log.windSpeed !== null
-                            ? log.windSpeed.toFixed(1)
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          {log.condition ? log.condition : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
+          <DashboardScreen
+            logs={logs}
+            insights={insights}
+            loading={loading}
+            creating={creating}
+            loadingInsights={loadingInsights}
+            error={error}
+            onReload={function () {
+              void carregarLogs();
+              void carregarInsights();
+            }}
+            onCreateFake={function () {
+              void criarRegistroFake();
+            }}
+            onExportCsv={handleDownloadCsv}
+            onExportXlsx={handleDownloadXlsx}
+          />
         )}
 
         {activePage === "users" && auth.user.role === "admin" && (
-          <div>
-            {usersError && (
-              <div className="mb-4 text-sm text-red-400">
-                {usersError}
-              </div>
-            )}
-
-            <section className="mb-6">
-              <h2 className="text-sm font-semibold text-slate-200 mb-3">
-                Criar novo usuário
-              </h2>
-
-              <form
-                onSubmit={handleCreateUser}
-                className="bg-slate-950/40 border border-slate-800 rounded-xl p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
-              >
-                <div>
-                  <label
-                    className="block text-xs mb-1"
-                    htmlFor="u-name"
-                  >
-                    Nome
-                  </label>
-                  <input
-                    id="u-name"
-                    name="name"
-                    type="text"
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="block text-xs mb-1"
-                    htmlFor="u-email"
-                  >
-                    E-mail
-                  </label>
-                  <input
-                    id="u-email"
-                    name="email"
-                    type="email"
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="block text-xs mb-1"
-                    htmlFor="u-password"
-                  >
-                    Senha
-                  </label>
-                  <input
-                    id="u-password"
-                    name="password"
-                    type="password"
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <label
-                      className="block text-xs mb-1"
-                      htmlFor="u-role"
-                    >
-                      Perfil
-                    </label>
-                    <select
-                      id="u-role"
-                      name="role"
-                      className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                      defaultValue="user"
-                    >
-                      <option value="user">Usuário</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={creatingUser}
-                    className="w-full rounded-md bg-emerald-500 py-2 text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
-                  >
-                    {creatingUser ? "Criando..." : "Criar usuário"}
-                  </button>
-                </div>
-              </form>
-            </section>
-
-            <section className="bg-slate-950/40 border border-slate-800 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-200">
-                  Usuários cadastrados
-                </h2>
-                <button
-                  type="button"
-                  onClick={function () {
-                    void carregarUsuarios();
-                  }}
-                  disabled={usersLoading}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-100 text-xs font-medium hover:bg-slate-700 transition disabled:opacity-60"
-                >
-                  {usersLoading ? "Atualizando..." : "Recarregar"}
-                </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-900/70">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Nome
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        E-mail
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Perfil
-                      </th>
-                      <th className="px-4 py-2 text-left font-semibold border-b border-slate-800">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.length === 0 && (
-                      <tr>
-                        <td
-                          className="px-4 py-4 text-slate-400"
-                          colSpan={4}
-                        >
-                          Nenhum usuário cadastrado.
-                        </td>
-                      </tr>
-                    )}
-
-                    {users.map((user) => (
-                      <tr
-                        key={user.id || user._id}
-                        className="border-t border-slate-800/80 hover:bg-slate-900/60 transition"
-                      >
-                        <td className="px-4 py-2">
-                          {user.name}
-                        </td>
-                        <td className="px-4 py-2">
-                          {user.email}
-                        </td>
-                        <td className="px-4 py-2">
-                          {user.role === "admin"
-                            ? "Admin"
-                            : "Usuário"}
-                        </td>
-                        <td className="px-4 py-2">
-                          <button
-                            type="button"
-                            onClick={function () {
-                              void handleDeleteUser(user);
-                            }}
-                            disabled={
-                              auth.user.email === user.email
-                            }
-                            className="px-3 py-1 rounded-md bg-red-500 text-white text-xs font-medium hover:bg-red-600 disabled:opacity-50"
-                          >
-                            Excluir
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
+          <UsersScreen
+            users={users}
+            usersError={usersError}
+            usersLoading={usersLoading}
+            creatingUser={creatingUser}
+            authUserEmail={auth.user.email}
+            onReloadUsers={function () {
+              void carregarUsuarios();
+            }}
+            onCreateUser={handleCreateUser}
+            onDeleteUser={function (user) {
+              void handleDeleteUser(user);
+            }}
+          />
         )}
       </div>
     </div>
