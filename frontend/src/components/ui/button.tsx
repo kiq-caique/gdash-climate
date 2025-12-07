@@ -14,11 +14,14 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground **text-slate-100**", // CORREÇÃO 1: Mantemos text-slate-100 aqui para o outline funcionar no UsersScreen
         secondary:
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        
+        // NOVO ESTILO PARA AS ABAS DO HEADER
+        tab: "bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700/80 transition-colors", // CORREÇÃO 2: Novo estilo para Dashboard e Usuários
       },
       size: {
         default: "h-9 px-4 py-2",

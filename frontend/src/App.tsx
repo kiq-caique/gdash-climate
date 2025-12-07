@@ -1,12 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// frontend/src/App.tsx
-import {
-  FormEvent,
-  JSX,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { FormEvent, JSX, useCallback, useEffect, useState } from "react";
 
 import "./index.css";
 
@@ -44,9 +37,6 @@ function App(): JSX.Element {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [creatingUser, setCreatingUser] = useState(false);
 
-  // --------------------------------------------------
-  // Auth
-  // --------------------------------------------------
   useEffect(() => {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
 
@@ -65,10 +55,7 @@ function App(): JSX.Element {
   const saveAuth = (state: AuthState | null): void => {
     setAuth(state);
     if (state) {
-      window.localStorage.setItem(
-        AUTH_STORAGE_KEY,
-        JSON.stringify(state),
-      );
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
     } else {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
     }
@@ -84,9 +71,6 @@ function App(): JSX.Element {
     };
   }, [auth]);
 
-  // --------------------------------------------------
-  // Weather
-  // --------------------------------------------------
   const carregarLogs = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -98,9 +82,7 @@ function App(): JSX.Element {
 
       if (!response.ok) {
         throw new Error(
-          "Falha ao buscar dados (" +
-            String(response.status) +
-            ")",
+          "Falha ao buscar dados (" + String(response.status) + ")"
         );
       }
 
@@ -122,18 +104,13 @@ function App(): JSX.Element {
     setError(null);
 
     try {
-      const response = await fetch(
-        API_BASE_URL + "/weather/insights",
-        {
-          headers: getAuthHeaders(),
-        },
-      );
+      const response = await fetch(API_BASE_URL + "/weather/insights", {
+        headers: getAuthHeaders(),
+      });
 
       if (!response.ok) {
         throw new Error(
-          "Falha ao buscar insights (" +
-            String(response.status) +
-            ")",
+          "Falha ao buscar insights (" + String(response.status) + ")"
         );
       }
 
@@ -175,9 +152,7 @@ function App(): JSX.Element {
 
       if (!response.ok) {
         throw new Error(
-          "Falha ao criar registro (" +
-            String(response.status) +
-            ")",
+          "Falha ao criar registro (" + String(response.status) + ")"
         );
       }
 
@@ -196,18 +171,13 @@ function App(): JSX.Element {
 
   const handleDownloadCsv = useCallback(async (): Promise<void> => {
     try {
-      const response = await fetch(
-        API_BASE_URL + "/weather/export.csv",
-        {
-          headers: getAuthHeaders(),
-        },
-      );
+      const response = await fetch(API_BASE_URL + "/weather/export.csv", {
+        headers: getAuthHeaders(),
+      });
 
       if (!response.ok) {
         throw new Error(
-          "Falha ao exportar CSV (" +
-            String(response.status) +
-            ")",
+          "Falha ao exportar CSV (" + String(response.status) + ")"
         );
       }
 
@@ -224,27 +194,20 @@ function App(): JSX.Element {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Erro inesperado ao exportar CSV";
+        err instanceof Error ? err.message : "Erro inesperado ao exportar CSV";
       window.alert(message);
     }
   }, [getAuthHeaders]);
 
   const handleDownloadXlsx = useCallback(async (): Promise<void> => {
     try {
-      const response = await fetch(
-        API_BASE_URL + "/weather/export.xlsx",
-        {
-          headers: getAuthHeaders(),
-        },
-      );
+      const response = await fetch(API_BASE_URL + "/weather/export.xlsx", {
+        headers: getAuthHeaders(),
+      });
 
       if (!response.ok) {
         throw new Error(
-          "Falha ao exportar XLSX (" +
-            String(response.status) +
-            ")",
+          "Falha ao exportar XLSX (" + String(response.status) + ")"
         );
       }
 
@@ -261,9 +224,7 @@ function App(): JSX.Element {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Erro inesperado ao exportar XLSX";
+        err instanceof Error ? err.message : "Erro inesperado ao exportar XLSX";
       window.alert(message);
     }
   }, [getAuthHeaders]);
@@ -277,9 +238,6 @@ function App(): JSX.Element {
     void carregarInsights();
   }, [auth, carregarLogs, carregarInsights]);
 
-  // --------------------------------------------------
-  // Users
-  // --------------------------------------------------
   const carregarUsuarios = useCallback(async (): Promise<void> => {
     setUsersLoading(true);
     setUsersError(null);
@@ -291,9 +249,7 @@ function App(): JSX.Element {
 
       if (!response.ok) {
         throw new Error(
-          "Falha ao buscar usuários (" +
-            String(response.status) +
-            ")",
+          "Falha ao buscar usuários (" + String(response.status) + ")"
         );
       }
 
@@ -311,19 +267,22 @@ function App(): JSX.Element {
   }, [getAuthHeaders]);
 
   const handleCreateUser = async (
-    event: FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault();
+    const formElement = event.currentTarget; // O formElement está garantido
+
     setUsersError(null);
     setCreatingUser(true);
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(formElement);
     const name = String(formData.get("name") || "");
     const email = String(formData.get("email") || "");
     const password = String(formData.get("password") || "");
-    const role = String(
-      formData.get("role") || "user",
-    ) as "admin" | "user";
+    const roleValue = formData.get("role");
+    const role = String(roleValue === "admin" ? "admin" : "user") as
+      | "admin"
+      | "user";
 
     try {
       const response = await fetch(API_BASE_URL + "/users", {
@@ -336,80 +295,104 @@ function App(): JSX.Element {
           name: name,
           email: email,
           password: password,
-          role: role,
+          role: role, // O role do frontend é enviado corretamente
         }),
       });
 
       if (!response.ok) {
         const text = await response.text();
         throw new Error(
-          "Falha ao criar usuário (" +
-            String(response.status) +
-            ") " +
-            text,
+          "Falha ao criar usuário (" + String(response.status) + ") " + text
         );
       }
 
-      event.currentTarget.reset();
+      // CORREÇÃO: Chamada reset só após sucesso (previne o erro 'Cannot read properties of null (reading 'reset')')
+      formElement.reset();
       await carregarUsuarios();
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Erro inesperado ao criar usuário";
+        err instanceof Error ? err.message : "Erro inesperado ao criar usuário";
       setUsersError(message);
     } finally {
       setCreatingUser(false);
     }
   };
 
-  const handleDeleteUser = async (
-    user: UserListItem,
-  ): Promise<void> => {
-    const id = user.id || user._id;
+const handleDeleteUser = async (
+  user: UserListItem,
+): Promise<void> => {
+  const id = user.id || user._id;
 
-    if (!id) {
-      return;
+  if (!id) {
+    return;
+  }
+
+  if (auth && user.email === auth.user.email) {
+    window.alert("Você não pode excluir o próprio usuário logado.");
+    return;
+  }
+
+  try {
+    const response = await fetch(API_BASE_URL + "/users/" + id, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        "Falha ao excluir usuário (" +
+          String(response.status) +
+          ")",
+      );
     }
 
-    if (auth && user.email === auth.user.email) {
-      window.alert("Você não pode excluir o próprio usuário logado.");
-      return;
+    await carregarUsuarios();
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Erro inesperado ao excluir usuário";
+    setUsersError(message);
+  }
+};
+
+const handleUpdateUser = async (
+  userId: string,
+  payload: { name: string; email: string; password?: string },
+): Promise<void> => {
+  setUsersError(null);
+
+  try {
+    const response = await fetch(API_BASE_URL + "/users/" + userId, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        "Falha ao atualizar usuário (" +
+          String(response.status) +
+          ") " +
+          text,
+      );
     }
 
-    const ok = window.confirm(
-      "Tem certeza que deseja excluir o usuário " +
-        user.email +
-        "?",
-    );
+    await carregarUsuarios();
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Erro inesperado ao atualizar usuário";
+    setUsersError(message);
+  }
+};
 
-    if (!ok) {
-      return;
-    }
 
-    try {
-      const response = await fetch(API_BASE_URL + "/users/" + id, {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          "Falha ao excluir usuário (" +
-            String(response.status) +
-            ")",
-        );
-      }
-
-      await carregarUsuarios();
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Erro inesperado ao excluir usuário";
-      setUsersError(message);
-    }
-  };
 
   useEffect(() => {
     if (!auth) {
@@ -421,11 +404,8 @@ function App(): JSX.Element {
     }
   }, [activePage, auth, carregarUsuarios]);
 
-  // --------------------------------------------------
-  // Login / Logout
-  // --------------------------------------------------
   const handleLoginSubmit = async (
-    event: FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault();
     setError(null);
@@ -451,9 +431,7 @@ function App(): JSX.Element {
       saveAuth(data);
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Erro ao tentar fazer login";
+        err instanceof Error ? err.message : "Erro ao tentar fazer login";
       setError(message);
     }
   };
@@ -465,9 +443,6 @@ function App(): JSX.Element {
     setUsers([]);
   };
 
-  // --------------------------------------------------
-  // Render
-  // --------------------------------------------------
   if (!authLoaded) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
@@ -477,12 +452,7 @@ function App(): JSX.Element {
   }
 
   if (!auth) {
-    return (
-      <LoginScreen
-        error={error}
-        onSubmit={handleLoginSubmit}
-      />
-    );
+    return <LoginScreen error={error} onSubmit={handleLoginSubmit} />;
   }
 
   return (
@@ -497,21 +467,20 @@ function App(): JSX.Element {
               Logs de clima salvos no MongoDB Atlas via NestJS.
             </p>
             <p className="text-xs text-slate-500 mt-1">
-              Logado como {auth.user.name} ({auth.user.email}) –{" "}
+              Logado como {auth.user.name} ({auth.user.email}) – 
               {auth.user.role === "admin" ? "Admin" : "Usuário"}
             </p>
           </div>
-
           <div className="flex flex-col gap-2 items-stretch md:items-end">
             <div className="flex gap-2">
               <Button
                 type="button"
                 size="sm"
-                variant={activePage === "dashboard" ? "default" : "outline"}
+                variant={activePage === "dashboard" ? "default" : "tab"} // Usando a nova variante 'tab'
                 className={
                   activePage === "dashboard"
-                    ? "bg-slate-100 text-slate-900 border-slate-100"
-                    : "bg-slate-800 text-slate-100 border-slate-700"
+                    ? "bg-slate-100 text-slate-900 border-slate-100 hover:bg-slate-200" // Estilo ativo e hover suave
+                    : "" // Deixa o estilo 'tab' agir
                 }
                 onClick={function () {
                   setActivePage("dashboard");
@@ -519,16 +488,15 @@ function App(): JSX.Element {
               >
                 Dashboard
               </Button>
-
               {auth.user.role === "admin" && (
                 <Button
                   type="button"
                   size="sm"
-                  variant={activePage === "users" ? "default" : "outline"}
+                  variant={activePage === "users" ? "default" : "tab"} // Usando a nova variante 'tab'
                   className={
                     activePage === "users"
-                      ? "bg-slate-100 text-slate-900 border-slate-100"
-                      : "bg-slate-800 text-slate-100 border-slate-700"
+                      ? "bg-slate-100 text-slate-900 border-slate-100 hover:bg-slate-200" // Estilo ativo e hover suave
+                      : "" // Deixa o estilo 'tab' agir
                   }
                   onClick={function () {
                     setActivePage("users");
@@ -537,17 +505,16 @@ function App(): JSX.Element {
                   Usuários
                 </Button>
               )}
-            </div>
-
             <Button
               type="button"
               variant="destructive"
               size="sm"
               className="px-4 self-end"
               onClick={handleLogout}
-            >
+              >
               Sair
             </Button>
+              </div>
           </div>
         </header>
 
@@ -577,19 +544,21 @@ function App(): JSX.Element {
 
         {activePage === "users" && auth.user.role === "admin" && (
           <UsersScreen
-            users={users}
-            usersError={usersError}
-            usersLoading={usersLoading}
-            creatingUser={creatingUser}
-            authUserEmail={auth.user.email}
-            onReloadUsers={function () {
-              void carregarUsuarios();
-            }}
-            onCreateUser={handleCreateUser}
-            onDeleteUser={function (user) {
-              void handleDeleteUser(user);
-            }}
-          />
+    users={users}
+    usersError={usersError}
+    usersLoading={usersLoading}
+    creatingUser={creatingUser}
+    authUserEmail={auth.user.email}
+    onReloadUsers={function () {
+      void carregarUsuarios();
+    }}
+    onCreateUser={handleCreateUser}
+    onDeleteUser={function (user) {
+      void handleDeleteUser(user);
+    }}
+    onUpdateUser={handleUpdateUser}
+
+  />
         )}
       </div>
     </div>
