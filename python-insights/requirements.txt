@@ -5,3 +5,5 @@ httpx
 apscheduler
 aio-pika
 python-dotenv
+requests
+pika

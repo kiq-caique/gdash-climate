@@ -1,0 +1,84 @@
+services:
+  mongo:
+    image: mongo:6
+    container_name: gdash-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: gdash-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: gdash
+      RABBITMQ_DEFAULT_PASS: gdash
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+
+  api:
+    build: ./backend
+    container_name: gdash-api
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/gdash-climate
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      WORKER_SECRET: ${WORKER_SECRET}
+      SYSTEM_USER_ID: ${SYSTEM_USER_ID}
+      PYTHON_INSIGHTS_URL: http://python-insights:8000/insights/from-logs
+    depends_on:
+      - mongo
+      - rabbitmq
+      - python-insights
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: "http://localhost:3000"
+    container_name: gdash-frontend
+    ports:
+      - "5173:80"
+    environment:
+      VITE_API_URL: "http://localhost:3000"
+    depends_on:
+      - api
+    restart: always
+
+  go-worker:
+    build: ./go-worker
+    container_name: gdash-go-worker
+    environment:
+      API_URL: http://api:3000
+      RABBITMQ_URL: amqp://gdash:gdash@gdash-rabbitmq:5672/
+    depends_on:
+      - api
+      - rabbitmq
+    restart: always
+
+  python-collector:
+    build: ./python-collector
+    container_name: gdash-python-collector
+    environment:
+      API_URL: http://api:3000
+      RABBITMQ_URL: amqp://gdash:gdash@gdash-rabbitmq:5672/
+    depends_on:
+      - rabbitmq
+    restart: always
+
+  python-insights:
+    build: ./python-insights
+    container_name: gdash-python-insights
+    ports:
+      - "8000:8000"
+    restart: always
+
+volumes:
+  mongo_data:
